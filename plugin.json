@@ -1,0 +1,169 @@
+{
+  "manifest_version": 1,
+  "protocol_version": 1,
+  "actions": {
+    "provider_key": "default",
+    "catalog": {
+      "actions_version": 1,
+      "actions": [
+        {
+          "key": "show_message",
+          "title": "Show test message",
+          "description": "Immediately show an informational bubble.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "interaction": "immediate",
+          "timeout_ms": 60000,
+          "category": "immediate"
+        },
+        {
+          "key": "increment_counter",
+          "title": "Increment test counter",
+          "description": "Immediately increment an in-memory counter; see its value in the testing TUI.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "interaction": "immediate",
+          "timeout_ms": 60000,
+          "category": "immediate"
+        },
+        {
+          "key": "greet",
+          "title": "Greet someone…",
+          "description": "Ask for a name, then display the greeting after Send.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "interaction": "input_bubble",
+          "timeout_ms": 300000,
+          "prompt": {
+            "type": "questionnaire",
+            "parameters": {
+              "questions": [
+                {
+                  "id": "name",
+                  "title": "Name",
+                  "required": true,
+                  "response": {
+                    "value_type": "text",
+                    "allow_custom": true,
+                    "choices": []
+                  }
+                }
+              ]
+            }
+          },
+          "category": "with_input"
+        },
+        {
+          "key": "add_numbers",
+          "title": "Add two numbers…",
+          "description": "Ask for two numbers, then display their sum after Send.",
+          "input_schema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": false
+          },
+          "interaction": "input_bubble",
+          "timeout_ms": 300000,
+          "prompt": {
+            "type": "questionnaire",
+            "parameters": {
+              "questions": [
+                {
+                  "id": "first",
+                  "title": "First number",
+                  "required": true,
+                  "response": {
+                    "value_type": "number",
+                    "allow_custom": true,
+                    "choices": [],
+                    "minimum": -1000000,
+                    "maximum": 1000000
+                  }
+                },
+                {
+                  "id": "second",
+                  "title": "Second number",
+                  "required": true,
+                  "response": {
+                    "value_type": "number",
+                    "allow_custom": true,
+                    "choices": [],
+                    "minimum": -1000000,
+                    "maximum": 1000000
+                  }
+                }
+              ]
+            }
+          },
+          "category": "with_input"
+        }
+      ],
+      "menus": [],
+      "categories": [
+        {
+          "key": "immediate",
+          "title": "Immediate",
+          "description": "Actions that run without requesting input."
+        },
+        {
+          "key": "with_input",
+          "title": "With input",
+          "description": "Actions that collect answers in a bubble."
+        }
+      ]
+    }
+  },
+  "plugin": {
+    "id": "testing",
+    "name": "Bubble Testing",
+    "version": "0.1.3",
+    "description": "An independent bubble workbench with immediate and input-driven testing actions.",
+    "layouts": {
+      "default": {
+        "template": "card",
+        "accent": "automatic",
+        "width": 430,
+        "show_details": false,
+        "input_placeholder": "Enter a test response..."
+      }
+    },
+    "icon": "data:image/png;base64,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"
+  },
+  "runtime": {
+    "kind": "process",
+    "executables": {
+      "macos-aarch64": "testing.py",
+      "macos-x86_64": "testing.py",
+      "linux-aarch64": "testing.py",
+      "linux-x86_64": "testing.py",
+      "windows-x86_64": "testing.cmd"
+    }
+  },
+  "dependencies": [
+    {
+      "runtime": "python",
+      "minimum_version": "3.11"
+    }
+  ],
+  "initialization": [
+    {
+      "kind": "python_venv",
+      "directory": ".venv",
+      "requirements": "requirements.txt"
+    }
+  ],
+  "background": {
+    "arguments": [
+      "--actions"
+    ]
+  }
+}
