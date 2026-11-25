@@ -78,13 +78,17 @@ check: lint format-check test ## Run all plugin checks
 clean: ## Remove generated packages and Python caches, preserving .venv
 	$(PYTHON) manage.py clean
 
-.PHONY: version-bump github-release github-release-dry-run
+.PHONY: version-bump release-check github-release github-release-dry-run
 
 version-bump: ## Bump plugin and package versions together (BUMP=patch|minor|major or VERSION=X.Y.Z)
 	"$(PYTHON)" release.py bump --part "$$BUMP" $${VERSION:+--version "$$VERSION"}
 
-github-release: check pack ## Create a stable GitHub Release and trigger publishing
+release-check: deps ## Prepare dependencies, run checks, and build release packages in order
+	$(MAKE) check
+	$(MAKE) pack
+
+github-release: release-check ## Create a stable GitHub Release and trigger publishing
 	"$(PYTHON)" release.py github
 
-github-release-dry-run: check pack ## Validate and preview the GitHub Release command
+github-release-dry-run: release-check ## Validate and preview the GitHub Release command
 	"$(PYTHON)" release.py github --dry-run

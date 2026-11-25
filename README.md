@@ -382,7 +382,9 @@ make github-release              # Create the stable GitHub Release
 
 The bump keeps the plugin manifest and package metadata aligned without creating
 a commit or tag. The first release can use the current version without a bump.
-`github-release` requires a clean checkout, verifies the exact local commit is
+Both release targets run `make deps` first to prepare this checkout's `.venv`, then
+run checks and packaging in order. `github-release` requires a clean checkout and
+verifies the exact local commit is
 available in the canonical GitHub repository, and rejects an existing tag that
 points elsewhere. No registry upload happens during dependency setup, checks,
 packaging, version bumps, or the release preview. If publication fails, rerun only

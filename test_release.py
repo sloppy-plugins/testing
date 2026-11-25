@@ -97,6 +97,62 @@ class ReleaseTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(release.release_version(self.root), expected)
 
+    def test_release_targets_prepare_dependencies_before_checks_and_packaging(self):
+        makefile = (release.ROOT / "Makefile").read_text(encoding="utf-8")
+        targets = makefile[makefile.index(".PHONY: version-bump") :]
+        phases = """import os
+from pathlib import Path
+import sys
+import time
+
+phase = sys.argv[1]
+if phase == "deps":
+    time.sleep(0.1)
+    if os.environ.get("FAIL_SETUP") == "1":
+        sys.exit(17)
+elif phase == "check":
+    assert Path("deps.done").is_file(), "Dependencies must finish before checks"
+elif phase == "pack":
+    assert Path("check.done").is_file(), "Checks must finish before packaging"
+elif phase == "github":
+    assert Path("pack.done").is_file(), "Packaging must finish before release"
+    assert ("--dry-run" in sys.argv) == (os.environ["DRY_RUN"] == "1")
+else:
+    raise AssertionError(phase)
+Path(phase + ".done").touch()
+"""
+        for target in ("github-release", "github-release-dry-run"):
+            for fail_setup in (False, True):
+                with self.subTest(target=target, fail_setup=fail_setup):
+                    directory = self.root / (target + str(fail_setup))
+                    directory.mkdir()
+                    (directory / "phase.py").write_text(phases, encoding="utf-8")
+                    (directory / "release.py").write_text(phases, encoding="utf-8")
+                    fixtures = "\n.PHONY: deps check pack\n"
+                    for phase in ("deps", "check", "pack"):
+                        fixtures += f'{phase}:\n\t"$(PYTHON)" phase.py {phase}\n'
+                    (directory / "Makefile").write_text(targets + fixtures, encoding="utf-8")
+                    result = subprocess.run(
+                        ["make", "-j8", target, f"PYTHON={sys.executable}"],
+                        cwd=directory,
+                        env={
+                            **os.environ,
+                            "FAIL_SETUP": str(int(fail_setup)),
+                            "DRY_RUN": str(int(target.endswith("-dry-run"))),
+                        },
+                        capture_output=True,
+                        text=True,
+                    )
+                    if fail_setup:
+                        self.assertNotEqual(result.returncode, 0)
+                        self.assertFalse(list(directory.glob("*.done")))
+                    else:
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                        self.assertEqual(
+                            {file.name for file in directory.glob("*.done")},
+                            {"deps.done", "check.done", "pack.done", "github.done"},
+                        )
+
     def test_preview_never_contacts_github(self):
         with (
             patch.object(release, "run", side_effect=self.fake_run),
