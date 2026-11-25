@@ -1,5 +1,7 @@
 """Plugin-owned tests; no imports from Sloppy's implementation or its test suite."""
 
+import asyncio
+from contextlib import closing
 from copy import deepcopy
 import errno
 import http.client
@@ -131,24 +133,24 @@ class CatalogTests(unittest.TestCase):
 class HistoryTests(unittest.TestCase):
     def test_history_is_unicode_safe_and_survives_restart(self):
         with tempfile.TemporaryDirectory() as directory:
-            history = testing.History(directory)
             credentials = {
                 "session_id": "session",
                 "instance_id": "service",
                 "resume_token": "private",
             }
-            history.data["resume"] = credentials
-            history.remember(
-                dict(id="one", title="Unicode: \u4f60\u597d", state="resolved", created_at_ms=1),
-                "service",
-            )
-            history.close()
-            reopened = testing.History(directory)
-            self.addCleanup(reopened.close)
-            self.assertEqual(reopened.data["resume"], credentials)
-            self.assertEqual(reopened.data["records"]["one"]["title"], "Unicode: \u4f60\u597d")
-            if os.name != "nt":
-                self.assertEqual(reopened.file.stat().st_mode & 0o777, 0o600)
+            with closing(testing.History(directory)) as history:
+                history.data["resume"] = credentials
+                history.remember(
+                    dict(
+                        id="one", title="Unicode: \u4f60\u597d", state="resolved", created_at_ms=1
+                    ),
+                    "service",
+                )
+            with closing(testing.History(directory)) as reopened:
+                self.assertEqual(reopened.data["resume"], credentials)
+                self.assertEqual(reopened.data["records"]["one"]["title"], "Unicode: \u4f60\u597d")
+                if os.name != "nt":
+                    self.assertEqual(reopened.file.stat().st_mode & 0o777, 0o600)
 
     def test_two_processes_cannot_share_history(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -327,9 +329,15 @@ for field, index in [('row', 0), ('column', 1)]:
             position = self.editor.cursor_location
             for width, height in [(40, 10), (90, 20), (120, 30), (180, 50)]:
                 await pilot.resize_terminal(width, height)
-                self.assertEqual(
-                    self.ui.query_one("#workbench").display, width >= 90 and height >= 20
-                )
+                expected = width >= 90 and height >= 20
+                # Textual debounces resize events; an idle message queue may precede the timer.
+                async with asyncio.timeout(2):
+                    while (
+                        self.ui.screen.size != (width, height)
+                        or self.ui.query_one("#workbench").display != expected
+                    ):
+                        await pilot.pause(0.01)
+                self.assertEqual(self.ui.query_one("#workbench").display, expected)
                 self.assertEqual(self.editor.text, draft)
                 self.assertEqual(self.editor.cursor_location, position)
             self.assertGreater(self.editor.scroll_x, 0)
