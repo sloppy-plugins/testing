@@ -7,6 +7,9 @@ ARGS ?=
 TEST_ARGS ?=
 SDK_SOURCE ?=
 PLUGIN_VERSION := $(shell $(PYTHON) -c 'import json, pathlib; print(json.loads(pathlib.Path("plugin.json").read_text())["plugin"]["version"])')
+BUMP ?= patch
+VERSION ?=
+export BUMP VERSION
 -include local.mk
 export PYTHONWARNINGS := error
 export PYTHONDONTWRITEBYTECODE := 1
@@ -17,7 +20,7 @@ ifeq ($(OS),Windows_NT)
 PY := $(CURDIR)/.venv/Scripts/python.exe
 endif
 
-.PHONY: help deps build package install installed-deps enable disable run dev test lint format format-check check clean
+.PHONY: help deps build package pack publish install installed-deps enable disable run dev test lint format format-check check clean
 
 help: ## List available targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z0-9-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -29,6 +32,15 @@ build: package ## Build the distributable plugin directory
 
 package: ## Stage a clean package without environments or caches
 	$(PYTHON) manage.py package
+
+pack: ## Build the installable archive, Python source distribution, and wheel
+	"$(PY)" manage.py pack
+	"$(PY)" -m build --no-isolation --outdir dist
+	"$(PY)" -m twine check dist/*
+	"$(PY)" manage.py verify-distributions
+
+publish: check pack ## Publish the checked Python distributions to public PyPI
+	"$(PY)" -m twine upload --repository-url https://upload.pypi.org/legacy/ dist/*
 
 install: package ## Install the package and provision its private Python environment
 	"$(SLOPPY)" plugins install "$(CURDIR)/build/package"
@@ -65,3 +77,14 @@ check: lint format-check test ## Run all plugin checks
 
 clean: ## Remove generated packages and Python caches, preserving .venv
 	$(PYTHON) manage.py clean
+
+.PHONY: version-bump github-release github-release-dry-run
+
+version-bump: ## Bump plugin and package versions together (BUMP=patch|minor|major or VERSION=X.Y.Z)
+	"$(PYTHON)" release.py bump --part "$$BUMP" $${VERSION:+--version "$$VERSION"}
+
+github-release: check pack ## Create a stable GitHub Release and trigger publishing
+	"$(PYTHON)" release.py github
+
+github-release-dry-run: check pack ## Validate and preview the GitHub Release command
+	"$(PYTHON)" release.py github --dry-run

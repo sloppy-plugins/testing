@@ -1,2 +1,5 @@
 -r requirements.txt
 ruff==0.17.6
+build==1.6.1
+twine==7.0.0
+setuptools==84.2.1

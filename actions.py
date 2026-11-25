@@ -7,7 +7,11 @@ from pathlib import Path
 import threading
 
 from sloppy_sdk import SloppyActionsProvider, SloppyError
-from catalog import response
+
+if __package__:
+    from .catalog import response
+else:
+    from catalog import response
 
 
 class TestingActions:

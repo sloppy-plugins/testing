@@ -341,3 +341,50 @@ Sloppy previews saved Actions that will migrate or be removed; choosing an alrea
 installed version merges the two installations. Catalogue maintainers can use the
 SDK's `sloppy-catalogue add-plugin` and `add-version` commands after committing the
 plugin manifest and source. The catalogue embeds the full manifest and commit.
+
+## CI and releases
+
+GitHub Actions runs `make deps check pack` on Linux, macOS, and Windows for
+pushes to `main`, pull requests, and manual dispatch. Python 3.11–3.14 are covered.
+The checks are standalone; Sloppy's service and native agent binaries are optional
+integration-test inputs. Release tooling requires Python 3.11+ and an authenticated
+GitHub CLI in addition to the build requirements above.
+
+A published stable GitHub Release triggers `.github/workflows/release.yml`.
+Its `vX.Y.Z` tag must match `plugin.json` and `pyproject.toml`. The build job
+checks, tests, and saves the artifacts. Separate jobs publish those exact artifacts
+and attach the installable ZIP to the GitHub Release. Prereleases do not publish.
+
+Create a GitHub environment named `pypi` in `sloppy-plugins/testing`. Configure
+a [PyPI trusted publisher](https://docs.pypi.org/trusted-publishers/) for project
+`sloppy-testing`, owner `sloppy-plugins`, repository `testing`, workflow filename
+`release.yml`, and environment `pypi`. Use a pending publisher for the first release.
+Publication uses OIDC and attestations; no PyPI API token secret is needed.
+
+`make pack` creates a wheel and source distribution in `dist/`, plus
+`build/sloppy-testing-VERSION.zip`. The PyPI distribution uses the `sloppy_testing`
+Python namespace and includes the plugin manifest. The user command remains
+`sloppy testing`; it adds no separate console command. Extract the ZIP into a
+folder, then run `sloppy plugins install /path/to/extracted-folder` and explicitly
+enable the installed plugin.
+
+For subsequent releases, choose one version-bump command:
+
+```sh
+make version-bump                 # Increase the patch version
+make version-bump BUMP=minor      # Or a minor version
+make version-bump BUMP=major      # Or a major version
+make version-bump VERSION=1.2.3   # Or an explicit greater stable version
+# Review, commit, and push to github.com/sloppy-plugins/testing.
+make github-release-dry-run      # Check, package, and preview locally
+make github-release              # Create the stable GitHub Release
+```
+
+The bump keeps the plugin manifest and package metadata aligned without creating
+a commit or tag. The first release can use the current version without a bump.
+`github-release` requires a clean checkout, verifies the exact local commit is
+available in the canonical GitHub repository, and rejects an existing tag that
+points elsewhere. No registry upload happens during dependency setup, checks,
+packaging, version bumps, or the release preview. If publication fails, rerun only
+the failed job. Published package versions are immutable; different contents
+require a version bump.

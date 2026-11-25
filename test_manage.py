@@ -7,11 +7,33 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
+import zipfile
 
 import manage
 
 
 class PackageTests(unittest.TestCase):
+    def test_release_archive_has_the_plugin_at_its_root_and_preserves_the_launcher(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name in manage.PACKAGE_FILES:
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(manage.ROOT / name, target)
+            (root / ".venv").mkdir()
+            with patch.object(manage, "ROOT", root):
+                manage.pack()
+            archives = list((root / "build").glob("*.zip"))
+            self.assertEqual(len(archives), 1)
+            with zipfile.ZipFile(archives[0]) as archive:
+                self.assertEqual(set(archive.namelist()), set(manage.PACKAGE_FILES))
+                self.assertEqual(archive.read("plugin.json"), (root / "plugin.json").read_bytes())
+                if os.name != "nt":
+                    self.assertEqual(
+                        (archive.getinfo("testing.py").external_attr >> 16) & 0o111, 0o111
+                    )
+
     def test_missing_cli_has_a_setup_action_instead_of_a_raw_os_error(self):
         result = subprocess.run(
             [

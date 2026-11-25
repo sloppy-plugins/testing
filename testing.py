@@ -13,7 +13,10 @@ import tempfile
 import threading
 import time
 
-from catalog import CATALOG, default_answer
+if __package__:
+    from .catalog import CATALOG, default_answer
+else:
+    from catalog import CATALOG, default_answer
 
 PLUGIN_ID = "testing"
 APPLICATION = "sloppy-testing"
@@ -156,7 +159,10 @@ class Backend:
         self.actions = None
 
     def start_actions(self, connection_file):
-        from actions import TestingActions
+        if __package__:
+            from .actions import TestingActions
+        else:
+            from actions import TestingActions
 
         self.actions = TestingActions(self.session, connection_file, self.descriptor)
 
